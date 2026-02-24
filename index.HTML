@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCQ Quiz</title>
+  <style>
+    body { font-family: Arial; margin: 16px; }
+    .question { margin: 14px 0; padding: 12px; border: 1px solid #ccc; border-radius: 12px; }
+    .correct { background-color: #d4edda; }
+    .wrong { background-color: #f8d7da; }
+    label { display:block; margin: 6px 0; }
+    button { width: 100%; padding: 12px; font-size: 16px; margin-top: 10px; border-radius: 10px; border: 1px solid #bbb; }
+    @media (max-width: 600px){ body{ font-size: 15px; } }
+  </style>
+</head>
+<body>
+
+<h2>MCQ Quiz</h2>
+<div id="info">Loading…</div>
+<div id="quiz">Loading quiz...</div>
+
+<button id="submitBtn" onclick="submitQuiz()" disabled>Submit Quiz</button>
+<button id="nextBtn" onclick="nextTest()" style="display:none;">Next Test (Next 25)</button>
+
+<div id="result"></div>
+
+<script>
+const apiUrl = "https://script.google.com/macros/s/AKfycbyC1CIDnPBRViZui56yxp1voeK8_FtiP1grQVk1x_ZDg0WUehgh_o3el0x2gzRnjgxn/exec"; // ✅ paste your /exec url here
+const PAGE_SIZE = 25;
+
+let all = [];
+let testIndex = 0;
+let current = [];
+
+function setInfo(){
+  const totalTests = Math.ceil(all.length / PAGE_SIZE) || 1;
+  const start = testIndex * PAGE_SIZE + 1;
+  const end = Math.min((testIndex + 1) * PAGE_SIZE, all.length);
+  document.getElementById("info").innerText = `Test ${testIndex+1}/${totalTests} • Questions ${start}-${end} of ${all.length}`;
+}
+
+function loadTest(){
+  const start = testIndex * PAGE_SIZE;
+  const end = start + PAGE_SIZE;
+  current = all.slice(start, end);
+  renderQuiz();
+  setInfo();
+  document.getElementById("submitBtn").disabled = current.length === 0;
+  document.getElementById("nextBtn").style.display = "none";
+  document.getElementById("result").innerHTML = "";
+}
+
+function renderQuiz(){
+  const quizDiv = document.getElementById("quiz");
+  quizDiv.innerHTML = "";
+  current.forEach((q, idx) => {
+    const div = document.createElement("div");
+    div.className = "question";
+    div.innerHTML =
+      `<p><b>Q${idx+1}:</b> ${q.question}</p>` +
+      q.options.map((opt, i) => {
+        const letter = String.fromCharCode(65+i);
+        return `<label><input type="radio" name="q${idx}" value="${letter}"> ${letter}: ${opt}</label>`;
+      }).join("");
+    quizDiv.appendChild(div);
+  });
+}
+
+function submitQuiz(){
+  let score = 0;
+  current.forEach((q, i) => {
+    const sel = document.querySelector(`input[name="q${i}"]:checked`);
+    q.userAnswer = sel ? sel.value : null;
+    if(q.userAnswer === q.correct) score++;
+  });
+
+  const quizDiv = document.getElementById("quiz");
+  quizDiv.innerHTML = "";
+  current.forEach((q, idx) => {
+    const div = document.createElement("div");
+    div.className = "question " + (q.userAnswer === q.correct ? "correct":"wrong");
+    div.innerHTML =
+      `<p><b>Q${idx+1}:</b> ${q.question}</p>` +
+      q.options.map((opt, i) => {
+        const letter = String.fromCharCode(65+i);
+        let mark = "";
+        if(letter === q.correct) mark = " ✔️";
+        else if(letter === q.userAnswer) mark = " ❌";
+        return `<label>${letter}: ${opt}${mark}</label>`;
+      }).join("") +
+      `<p><b>Correct:</b> ${q.correct} | <b>Your:</b> ${q.userAnswer || "-"}</p>`;
+    quizDiv.appendChild(div);
+  });
+
+  const pct = (score/current.length)*100;
+  document.getElementById("result").innerHTML = `<h3>Score: ${score}/${current.length} (${pct.toFixed(1)}%)</h3>`;
+
+  const totalTests = Math.ceil(all.length / PAGE_SIZE) || 1;
+  document.getElementById("nextBtn").style.display = (testIndex+1 < totalTests) ? "block":"none";
+}
+
+function nextTest(){
+  testIndex++;
+  loadTest();
+}
+
+async function init(){
+  try{
+    const res = await fetch(apiUrl);
+    all = await res.json();
+    loadTest();
+    document.getElementById("submitBtn").disabled = false;
+  }catch(e){
+    console.error(e);
+    document.getElementById("quiz").innerText = "Error loading quiz. Check Apps Script deployment (Anyone access) and correct /exec URL.";
+  }
+}
+init();
+</script>
+
+</body>
+</html>
